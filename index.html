@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="배구 평가">
+<meta name="theme-color" content="#FFFFFF">
+<title>배구 언더핸드 패스 평가</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#EEF3F9; --card:#FFFFFF; --line:#DCE4EF; --line2:#EAF0F7;
+  --ink:#1B2A41; --ink2:#3A4B63; --muted:#56677F;
+  --bl:#2B67C9; --bl-d:#1F4F9E; --bl-l:#E6EEFB; --bl-m:#C9DAF5;
+  --r:16px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:'Noto Sans KR',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+body{display:flex;flex-direction:column;min-height:100vh}
+button,input,textarea{font-family:inherit;color:inherit}
+button{cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.hide{display:none!important}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+header{flex-shrink:0;background:var(--card);border-bottom:1px solid var(--line);padding:8px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:8px}
+.brand b{font-size:17px;font-weight:900;letter-spacing:-.3px;white-space:nowrap}
+.classes{display:flex;gap:5px;flex:1;flex-wrap:wrap;justify-content:center}
+.chip{min-width:48px;height:40px;padding:0 10px;border-radius:20px;border:1px solid var(--line);background:#fff;font-size:15px;font-weight:500;color:var(--ink2)}
+.chip.on{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:700}
+.tools{display:flex;gap:6px}
+.btn{height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:#fff;font-size:14px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.btn:hover{border-color:var(--bl-m)}
+.btn.on{background:var(--bl-l);border-color:var(--bl-m);color:var(--bl-d);font-weight:700}
+.btn.pri{background:var(--bl);border-color:var(--bl);color:#fff;font-weight:700}
+.btn.pri:hover{background:var(--bl-d)}
+.btn.sm{height:38px;padding:0 12px;font-size:13px}
+
+#view{flex:1;min-height:0;display:flex}
+.eval{flex:1;min-height:0;display:flex;gap:14px;padding:14px 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r)}
+
+/* 명렬 */
+.roster{flex:0 0 38%;display:flex;flex-direction:column;padding:10px;min-height:0}
+.roster h3{margin:2px 6px 8px;font-size:14px;display:flex;justify-content:space-between;color:var(--ink2)}
+.roster h3 span{font-weight:500;color:var(--muted)}
+.rgrid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-auto-rows:minmax(50px,1fr);gap:6px}
+.stu{border:1px solid var(--line2);background:#F8FAFD;border-radius:12px;padding:6px 8px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:1px;text-align:left;position:relative;min-width:0;overflow:hidden}
+.stu .no{font-size:11px;color:var(--muted);font-weight:700}
+.stu .nm{font-size:13px;font-weight:500;line-height:1.25;width:100%;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:keep-all;overflow-wrap:anywhere}
+.stu .lv{position:absolute;top:5px;right:6px;width:22px;height:22px;border-radius:11px;background:var(--bl-l);color:var(--bl-d);display:flex;align-items:center;justify-content:center}
+.stu .lv.part{background:#fff;border:1.5px dashed var(--bl-m)}
+.stu.done{background:#fff;border-color:var(--line)}
+.stu.cur{background:var(--bl);border-color:var(--bl)}
+.stu.cur .no,.stu.cur .nm{color:#fff}
+.stu.cur .nm{font-weight:700}
+.stu.cur .lv{background:#fff;color:var(--bl-d)}
+
+/* 오른쪽 */
+.work{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px;min-height:0}
+.who{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.who h2{margin:0;font-size:26px;font-weight:900;letter-spacing:-.4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who .hint{font-size:12px;color:var(--muted);white-space:nowrap}
+
+.board{flex:1 1 auto;min-height:280px;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:10px}
+.sec{display:flex;flex-direction:column;gap:8px;min-height:0;padding:10px}
+.sec .st{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;font-weight:700;color:var(--ink2);padding:0 2px}
+.sec .st span{font-weight:500;color:var(--muted);font-size:12px}
+.tiles{flex:1;min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:8px}
+.tile{border:2px solid #6E9BE0;background:#F8FAFD;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;position:relative;padding:8px;min-height:96px;transition:background .12s,border-color .12s}
+.tile .kw{font-size:22px;font-weight:700;color:var(--ink);letter-spacing:-.3px}
+.tile .sub{font-size:12px;color:var(--muted)}
+.tile .ck{position:absolute;top:10px;right:10px;width:26px;height:26px;border-radius:13px;border:1.5px solid #C3CEDD;background:#fff;display:flex;align-items:center;justify-content:center}
+.tile .ck svg{opacity:0}
+.tile .st2{font-size:12px;font-weight:700;color:var(--muted)}
+.tile.on{background:var(--bl);border-color:var(--bl);box-shadow:0 4px 12px rgba(43,103,201,.22)}
+.tile.on .kw{color:#fff}
+.tile.on .sub,.tile.on .st2{color:#DCE7FA}
+.tile.on .ck{background:#fff;border-color:#fff}
+.tile.on .ck svg{opacity:1}
+
+.quant{gap:10px}
+.cnt{flex:1;min-height:96px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-radius:14px;background:var(--bl-l)}
+.cnt .num{font-size:64px;font-weight:900;line-height:1;color:var(--bl-d);letter-spacing:-1px}
+.cnt .num small{font-size:20px;font-weight:700;margin-left:3px}
+.cnt .goal{font-size:13px;font-weight:500;color:var(--ink2)}
+.cells{display:grid;gap:3px;width:92%;margin:4px 0 2px}
+.cell{height:24px;border-radius:5px;background:#fff;box-shadow:inset 0 0 0 1.5px #C9DAF5;overflow:hidden;position:relative}
+.cell b{position:absolute;inset:0;border-radius:5px;background:var(--bl)}
+.cell.gone b{opacity:0;transform:scale(0)}
+.cell.out b{animation:erase .45s cubic-bezier(.4,0,.2,1)}
+.cell.in b{animation:fill .3s cubic-bezier(.2,.8,.3,1)}
+@keyframes erase{0%{opacity:1;transform:scale(1);background:var(--bl)}35%{opacity:1;transform:scale(1.15,1.3);background:#7FA8E8}100%{opacity:0;transform:scale(0)}}
+@keyframes fill{0%{opacity:0;transform:scale(0)}100%{opacity:1;transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.cell.out b,.cell.in b{animation:none}}
+.qb{border-radius:16px;border:1.5px solid var(--line);background:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px}
+.qpair{display:flex;gap:8px;height:108px;flex-shrink:0}
+.qb.ok{flex:2;background:var(--bl);border-color:var(--bl);color:#fff;font-size:30px;box-shadow:0 4px 12px rgba(43,103,201,.22)}
+.qb.ok:active{background:var(--bl-d)}
+.qb.minus{flex:1;background:#fff;border-color:#C3CEDD;color:var(--ink2);font-size:24px}
+.qb.minus:active{background:var(--bl-l)}
+.qb.off{opacity:.4;box-shadow:none}
+.gseg{display:flex;gap:4px;padding:3px;border-radius:12px;background:#fff;border:1px solid var(--line);flex-shrink:0}
+.gseg button{height:40px;min-width:58px;padding:0 12px;border:none;border-radius:9px;background:transparent;font-size:15px;font-weight:700;color:var(--muted)}
+.gseg button.on{background:var(--bl);color:#fff}
+.gseg.need{border-color:#E5484D;box-shadow:0 0 0 3px #FDE2E3;animation:gring 1.4s ease-in-out infinite}
+.gwarn{display:inline-flex;align-items:center;gap:6px;color:#E5484D;font-size:16px;font-weight:700;white-space:nowrap;animation:gpulse 1.4s ease-in-out infinite}
+.gwarn::before{content:'';width:9px;height:9px;border-radius:50%;background:#E5484D}
+.gwarn.shake{animation:gshake .5s ease-in-out}
+@keyframes gpulse{0%,100%{opacity:1;transform:translateX(0)}50%{opacity:.55;transform:translateX(-4px)}}
+@keyframes gring{0%,100%{box-shadow:0 0 0 3px #FDE2E3}50%{box-shadow:0 0 0 6px #FDE2E3}}
+@keyframes gshake{0%,100%{transform:translateX(0)}15%,55%{transform:translateX(-7px)}35%,75%{transform:translateX(7px)}}
+@media (prefers-reduced-motion:reduce){.gwarn,.gseg.need{animation:none}}
+.board.locked .tile,.board.locked .qb,.board.locked .cnt{opacity:.4}
+.who .left{display:flex;align-items:center;gap:12px;min-width:0;flex-wrap:wrap}
+.stu .no b{font-weight:700;color:var(--bl-d);margin-left:3px}
+.stu.cur .no b{color:#DCE7FA}
+
+/* 점수 */
+.scores{display:grid;grid-template-columns:1fr 1fr 1.25fr;gap:10px;flex-shrink:0}
+.sc{padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sc .lb{font-size:13px;font-weight:700;color:var(--ink2)}
+.sc .lb small{display:block;font-size:11px;font-weight:500;color:var(--muted);margin-top:1px}
+.sc .v{font-size:30px;font-weight:900;color:var(--bl-d);letter-spacing:-.5px;line-height:1}
+.sc .v span{font-size:14px;font-weight:500;color:var(--muted);margin-left:2px}
+.sc.tot{background:var(--bl);border-color:var(--bl)}
+.sc.tot .lb,.sc.tot .lb small{color:#DCE7FA}
+.sc.tot .v{color:#fff;font-size:36px}
+.sc.tot .v span{color:#DCE7FA}
+
+.actions{display:flex;gap:8px;align-items:center;flex-shrink:0}
+.memo{flex:1;min-width:120px;height:52px;display:flex;align-items:center;gap:8px;padding:0 12px;border-radius:12px;background:#fff;border:1px solid var(--line)}
+.memo input{flex:1;min-width:0;border:none;background:transparent;font-size:14px;outline:none}
+.saved{font-size:12px;color:var(--muted);min-width:44px;text-align:center}
+.actions .btn{height:52px}
+.actions .btn.pri{padding:0 22px;font-size:16px}
+.legend{font-size:12px;color:var(--muted);text-align:right;line-height:1.6}
+.legend b{color:var(--bl-d)}
+
+.classview{flex:1;min-width:0;padding:14px 16px;display:flex;flex-direction:column;gap:12px;overflow:auto}
+.summary{display:flex;gap:10px;flex-wrap:wrap;padding:14px}
+.sbox{flex:1;min-width:100px;padding:10px 14px;border-radius:12px;background:var(--bg)}
+.sbox b{font-size:22px;font-weight:900;display:block}
+.sbox span{font-size:12px;color:var(--muted)}
+.tablebox{overflow-x:auto;padding:6px}
+table{border-collapse:collapse;width:100%;min-width:760px;font-size:14px}
+th,td{padding:9px 6px;border-bottom:1px solid var(--line2);text-align:center;white-space:nowrap}
+th{font-size:12px;color:var(--muted);font-weight:700;background:#F7F9FC}
+td.l{text-align:left;white-space:normal;min-width:140px;line-height:1.55;font-size:13px}
+.mk{display:inline-block;width:22px;height:22px;border-radius:11px;line-height:22px;font-size:12px;font-weight:700}
+.mk.y{background:var(--bl);color:#fff}
+.mk.n{background:var(--line2);color:var(--muted)}
+
+.empty-state{flex:1;margin:16px;padding:48px 24px;text-align:center}
+.empty-state h3{margin:0 0 8px;font-size:20px}
+.empty-state p{margin:0 0 18px;color:var(--muted);font-size:15px;line-height:1.7}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 20px;border-radius:12px;font-size:14px;z-index:20;box-shadow:0 8px 24px rgba(27,42,65,.25);max-width:90vw}
+.notice{margin:10px 16px 0;padding:10px 14px;border-radius:12px;background:#FFF7E8;border:1px solid #F0DDB8;color:#6A4A12;font-size:13px}
+
+@media (max-width:900px), (orientation:portrait){
+  .eval{flex-direction:column}
+  .roster{flex:0 0 auto}
+  .rgrid{grid-template-columns:repeat(6,minmax(0,1fr));grid-auto-rows:50px}
+  .board{min-height:380px}
+}
+@media (max-width:640px){
+  .rgrid{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .board{grid-template-columns:1fr}
+  .tile .kw{font-size:19px}
+  .scores{grid-template-columns:1fr 1fr}
+  .sc.tot{grid-column:1/-1}
+  .actions{flex-wrap:wrap}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#2B67C9" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M12 2.5c-1.2 3.6-.6 7 1.6 9.6"/><path d="M13.6 12.1c-3.4.9-6.8.3-9.9-1.9"/><path d="M13.6 12.1c1.7 3 4.3 5 7.4 5.8"/><path d="M5.2 18.7c2.9-1.4 5.6-3.6 8.4-6.6"/><path d="M19.6 6.6c-2.4 1.1-4.4 3-6 5.5"/></svg>
+    <b>배구 언더핸드 패스 평가</b>
+  </div>
+  <nav class="classes" id="classes" aria-label="반 선택"></nav>
+  <div class="tools">
+    <label class="btn" for="file" title="엑셀 명렬 불러오기">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2B67C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M4 21h16"/></svg>명렬
+    </label>
+    <input type="file" id="file" class="sr" accept=".xlsx,.xls,.csv">
+    <button class="btn" id="viewBtn">반 결과</button>
+    <button class="btn" id="exportBtn" title="결과 엑셀 저장">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2B67C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 21h16"/></svg>엑셀 저장
+    </button>
+  </div>
+</header>
+<div id="notice" class="notice hide" role="note"></div>
+<div id="view"></div>
+<div id="toast" class="toast hide" role="status"></div>
+
+<script>
+/* ---------- 평가 기준 (여기 숫자만 바꾸면 점수가 바뀜) ---------- */
+var EL = [
+  {kw:'손목·팔 펴기', sub:'손목 아래로 꺾고 팔 쭉 펴기',   good:'손목을 아래로 꺾고 두 팔을 끝까지 곧게 펴서 공을 받는 동작을 정확하게 수행함', goal:'손목을 꺾어 팔 펴기'},
+  {kw:'팔 수평 유지', sub:'두 팔을 평평하게 유지',         good:'두 팔을 수평으로 유지하여 공이 가는 방향을 안정적으로 조절함',                  goal:'팔 수평 유지'},
+  {kw:'하체 굴신',    sub:'무릎 굽혔다 펴며 밀어 올리기',  good:'무릎을 굽혔다 펴는 하체의 힘을 이용하여 공을 부드럽게 밀어 올림',              goal:'하체 굴신 활용'},
+  {kw:'정확한 터치',  sub:'손목 말고 팔뚝에 맞히기',       good:'손목이 아닌 팔뚝에 공을 정확하게 맞혀 안정적으로 패스함',                     goal:'팔뚝에 정확히 맞히기'}
+];
+var N = EL.length;                 // 질적 요소 수
+var QUAL  = [10,15,20,25,30];      // 질적: 해낸 요소 0·1·2·3·4개 → 점수 (만점 30)
+// 양적: 성별 만점 개수와 점수 구간 [이 개수 이상, 점수] (구간 아래는 최하점 30)
+var QT = {
+  M:{name:'남', max:15, steps:[[15,70],[12,60],[9,50],[6,40]]},
+  F:{name:'여', max:10, steps:[[10,70],[8,60],[6,50],[4,40]]}
+};
+var QMIN = 30;
+var MAXCOUNT = 99;
+function quantOf(g,m){ var t=QT[g]; if(!t) return null; for(var i=0;i<t.steps.length;i++){ if(m>=t.steps[i][0]) return t.steps[i][1]; } return QMIN; }
+function stepTxt(g){ var t=QT[g], a=t.steps, o=[]; for(var i=0;i<a.length;i++){ var lo=a[i][0], hi=i?a[i-1][0]-1:null; o.push((hi==null?lo+'개↑':(lo===hi?lo+'개':lo+'~'+hi+'개'))+' <b>'+a[i][1]+'</b>'); } o.push((a[a.length-1][0]-1)+'개↓ <b>'+QMIN+'</b>'); return t.name+' '+o.join(' · '); }
+var QUAL_TXT  = '해냄 4개 <b>30</b> · 3개 <b>25</b> · 2개 <b>20</b> · 1개 <b>15</b> · 0개 <b>10</b>';
+var OPEN = ['배구 언더핸드 패스 수업에서 ', '언더핸드 패스 연습 과정에서 ', '배구 언더핸드 패스 활동에서 '];
+
+var CHECK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2B67C9" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+var DONE = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+var S = { cls:1, view:'eval', classes:{}, results:{}, genders:{}, cur:null, anim:null, draft:null, dirty:false, loaded:false, timer:null };
+
+function esc(t){ return String(t==null?'':t).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+function $(id){ return document.getElementById(id); }
+function toast(m){ var t=$('toast'); t.textContent=m; t.classList.remove('hide'); clearTimeout(toast.h); toast.h=setTimeout(function(){t.classList.add('hide');},2600); }
+function yesCount(ch){ var n=0; for(var i=0;i<N;i++){ if(ch[i]===true) n++; } return n; }
+function qualOf(ch){ return QUAL[yesCount(ch)]; }
+function totalOf(ch,g,m){ var q=quantOf(g,m); return q==null?null:qualOf(ch)+q; }
+function students(c){ var d=S.classes[c]; return d && Array.isArray(d.students) ? d.students : []; }
+function resOf(c,no){ var r=S.results[c]; return r && r['s'+no] ? r['s'+no] : null; }
+function complete(r){ return !!(r && r.fin && QT[r.gender]); }
+function normG(v){ v=String(v||'').replace(/\s/g,'').toUpperCase(); if(/^(남|남자|남학생|M|MALE|1)$/.test(v)) return 'M'; if(/^(여|여자|여학생|F|W|FEMALE|2)$/.test(v)) return 'F'; return ''; }
+function genderOf(c,no){
+  var m=S.genders[c]; if(m && QT[m['s'+no]]) return m['s'+no];
+  var s=students(c).filter(function(x){return x.no===no;})[0];
+  return s && QT[s.gender] ? s.gender : '';
+}
+
+function joinGood(list){ return list.map(function(t,k){ return k<list.length-1 ? t.replace(/함$/, k%2===0?'하고':'하며').replace(/림$/, '리고') : t; }).join(' '); }
+function makeSentence(ch, v){
+  var good=[], goal=[];
+  for(var i=0;i<N;i++){ if(ch[i]===true) good.push(EL[i].good); else goal.push(EL[i].goal); }
+  var out = OPEN[(v||0)%OPEN.length];
+  if(good.length===N) return out + joinGood(good.slice(0,2)) + '. 팔 펴기·팔 수평 유지·하체 굴신·정확한 터치를 고루 갖추어 언더핸드 패스를 안정적으로 수행함.';
+  if(good.length) out += joinGood(good) + '.';
+  else out += '기본 자세를 차근차근 익힘.';
+  if(goal.length){ var g = goal.length>3 ? goal.slice(0,3).join(', ')+' 등' : goal.join(', '); out += ' ' + g + '에 꾸준히 도전하며 감각을 익힘.'; }
+  return out;
+}
+
+/* ---------- 화면 ---------- */
+function renderHeader(){
+  var h='';
+  for(var c=1;c<=10;c++) h+='<button class="chip'+(c===S.cls?' on':'')+'" data-c="'+c+'">'+c+'반</button>';
+  $('classes').innerHTML=h;
+  $('viewBtn').classList.toggle('on', S.view==='class');
+  $('viewBtn').textContent = S.view==='class' ? '평가 화면' : '반 결과';
+}
+function render(){
+  renderHeader();
+  var list=students(S.cls);
+  if(!list.length){
+    $('view').innerHTML='<div class="card empty-state">'+
+      (S.loaded?'<h3>'+S.cls+'반 명렬이 없어요</h3><p>드리블 평가 웹앱에 넣은 명렬을 함께 써요.<br>그쪽에 없는 반은 엑셀 양식에 반·번호·이름(·성별)을 채운 뒤 위쪽 <b>명렬</b> 버튼으로 불러와 주세요.</p><label class="btn pri" for="file">명렬 불러오기</label>'
+               :'<h3>불러오는 중…</h3><p>저장된 명렬과 평가 결과를 가져오고 있어요.</p>')+'</div>';
+    return;
+  }
+  if(S.view==='class'){ renderClassView(list); return; }
+  if(S.cur==null || !list.some(function(s){return s.no===S.cur;})) selectStudent(list[0].no,true);
+  renderEval(list);
+}
+
+function renderEval(list){
+  var d=S.draft, ch=d.checks, g=d.gender, m=d.count, n=yesCount(ch), t=QT[g];
+  var q=qualOf(ch), qn=quantOf(g,m), tot=qn==null?null:q+qn;
+  var me=list.filter(function(s){return s.no===S.cur;})[0];
+  var done=list.filter(function(s){return complete(resOf(S.cls,s.no));}).length;
+  var cols = list.length>35 ? 6 : 5;
+  var h='<div class="eval">';
+  h+='<section class="card roster" aria-label="학생 명단"><h3>'+S.cls+'반 명렬<span>'+done+' / '+list.length+'명 평가</span></h3><div class="rgrid" style="grid-template-columns:repeat('+cols+',minmax(0,1fr))">';
+  list.forEach(function(s){
+    var r=resOf(S.cls,s.no), cur=s.no===S.cur, f=complete(r), sg=genderOf(S.cls,s.no);
+    h+='<button class="stu'+(r?' done':'')+(cur?' cur':'')+'" data-s="'+s.no+'" aria-label="'+s.no+'번 '+esc(s.name)+(f?' 평가 완료':(r?' 평가 중':' 평가 전'))+'">'+
+       '<span class="no">'+s.no+(sg?'<b>'+QT[sg].name+'</b>':'')+'</span><span class="nm">'+esc(s.name)+'</span>'+(f?'<span class="lv" aria-hidden="true">'+DONE+'</span>':(r?'<span class="lv part" aria-hidden="true"></span>':''))+'</button>';
+  });
+  h+='</div></section>';
+
+  h+='<section class="work"><div class="who"><div class="left"><h2>'+me.no+'번 '+esc(me.name)+'</h2>'+
+     '<div class="gseg'+(g?'':' need')+'" role="group" aria-label="성별"><button data-g="M" class="'+(g==='M'?'on':'')+'" aria-pressed="'+(g==='M')+'">남</button><button data-g="F" class="'+(g==='F'?'on':'')+'" aria-pressed="'+(g==='F')+'">여</button></div>'+(g?'':'<span class="gwarn" id="gwarn" role="alert">성별을 우선 선택하세요</span>')+'</div>'+
+     '<span class="hint">'+(g?'해낸 자세만 누르기 · 성공할 때마다 +1':'')+'</span></div>';
+  h+='<div class="board'+(g?'':' locked')+'">';
+  h+='<div class="card sec"><div class="st">질적평가 · 언더핸드 패스 자세<span>해냄 '+n+' / '+N+'</span></div><div class="tiles" role="group" aria-label="관찰 요소">';
+  EL.forEach(function(e,i){
+    var on=ch[i]===true;
+    h+='<button class="tile'+(on?' on':'')+'" data-i="'+i+'" aria-pressed="'+on+'"><span class="ck">'+CHECK+'</span><span class="kw">'+e.kw+'</span><span class="sub">'+e.sub+'</span><span class="st2">'+(on?'해냄':'도전 중')+'</span></button>';
+  });
+  h+='</div></div>';
+  var goalTxt = !t ? '성별을 고르면 만점 기준이 나와요' : (m>=t.max ? t.name+'학생 만점('+t.max+'개) 달성' : t.name+'학생 '+t.max+'개 만점 · '+(t.max-m)+'개 남음');
+  h+='<div class="card sec quant" role="group" aria-label="언더핸드 패스 성공 개수"><div class="st">양적평가 · 성공 개수<span>'+(t?t.name+' '+t.max+'개 만점':'성별 선택 전')+'</span></div>'+
+     '<div class="cnt"><div class="num" aria-live="polite">'+m+'<small>개</small></div>'+cellsHtml(t,m)+'<div class="goal">'+goalTxt+'</div></div>'+
+     '<div class="qpair"><button class="qb minus'+(m<=0?' off':'')+'" id="minusBtn" aria-label="1개 빼기">−1</button>'+
+     '<button class="qb ok'+(m>=MAXCOUNT?' off':'')+'" id="plusBtn" aria-label="1개 더하기">+1</button></div></div>';
+  h+='</div>';
+  h+='<div class="scores">'+
+     '<div class="card sc"><div class="lb">질적평가<small>해냄 '+n+'개</small></div><div class="v">'+q+'<span>/30</span></div></div>'+
+     '<div class="card sc"><div class="lb">양적평가<small>'+(t?'성공 '+m+'개':'성별 선택 전')+'</small></div><div class="v">'+(qn==null?'–':qn)+'<span>/70</span></div></div>'+
+     '<div class="card sc tot"><div class="lb">총점<small>나이스 입력 점수</small></div><div class="v">'+(tot==null?'–':tot)+'<span>/100</span></div></div></div>';
+  var idx=list.findIndex(function(s){return s.no===S.cur;});
+  h+='<div class="actions"><label class="memo"><span class="sr">메모</span><input id="memo" type="text" placeholder="짧은 메모 (선택)" value="'+esc(d.memo)+'"></label>'+
+     '<span class="saved" id="savedTxt">'+(S.dirty?'저장 전':(resOf(S.cls,S.cur)?'저장됨':''))+'</span>'+
+     '<button class="btn" id="prevBtn"'+(idx<=0?' disabled style="opacity:.45"':'')+'>이전</button>'+
+     '<button class="btn pri" id="nextBtn">저장하고 다음<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></div>';
+  h+='<div class="legend">질적 '+QUAL_TXT+'<br>양적 '+stepTxt('M')+'<br>'+stepTxt('F')+'</div>';
+  h+='</section></div>';
+  $('view').innerHTML=h;
+}
+
+// 만점 개수만큼 가로칸을 그리고, 센 개수만큼 왼쪽부터 지움
+function cellsHtml(t,m){
+  if(!t) return '';
+  var a=S.anim; S.anim=null;
+  var h='<div class="cells" aria-hidden="true" style="grid-template-columns:repeat('+t.max+',minmax(0,1fr))">';
+  for(var k=0;k<t.max;k++){
+    var c='cell'+(k<m?' gone':'');
+    if(a && a.i===k) c+=(a.t==='out'?' out':' in');
+    h+='<i class="'+c+'"><b></b></i>';
+  }
+  return h+'</div>';
+}
+function renderClassView(list){
+  var done=0, sum=0, cnt=0, hi=null, lo=null;
+  list.forEach(function(s){ var r=resOf(S.cls,s.no); if(!r) return; if(complete(r)) done++; var t=totalOf(r.checks,r.gender,r.count||0); if(t==null) return; sum+=t; cnt++; hi=hi==null?t:Math.max(hi,t); lo=lo==null?t:Math.min(lo,t); });
+  var h='<div class="classview"><div class="card summary">'+
+    '<div class="sbox"><b>'+done+' / '+list.length+'</b><span>평가 완료</span></div>'+
+    '<div class="sbox"><b style="color:#1F4F9E">'+(cnt?Math.round(sum/cnt*10)/10:'-')+'</b><span>평균 총점</span></div>'+
+    '<div class="sbox"><b style="color:#1F4F9E">'+(hi==null?'-':hi)+'</b><span>최고점</span></div>'+
+    '<div class="sbox"><b style="color:#1F4F9E">'+(lo==null?'-':lo)+'</b><span>최저점</span></div></div>'+
+    '<p style="margin:0;padding:10px 14px;border-radius:12px;background:#FFF7E8;border:1px solid #F0DDB8;color:#6A4A12;font-size:13px">반 전체 점수가 보이는 화면이에요. 학생에게 보여 줄 때는 위쪽 <b>평가 화면</b>으로 돌아가 주세요.</p><div class="card tablebox"><table><thead><tr><th>번호</th><th>이름</th><th>성별</th>';
+  EL.forEach(function(e){ h+='<th>'+e.kw+'</th>'; });
+  h+='<th>질적</th><th>성공 개수</th><th>양적</th><th>총점</th><th>메모</th></tr></thead><tbody>';
+  list.forEach(function(s){
+    var r=resOf(S.cls,s.no), sg=r&&QT[r.gender]?r.gender:genderOf(S.cls,s.no);
+    h+='<tr><td>'+s.no+'</td><td><button class="btn sm" data-go="'+s.no+'">'+esc(s.name)+'</button></td><td>'+(sg?QT[sg].name:'<b style="color:#C27A12">?</b>')+'</td>';
+    for(var i=0;i<N;i++){ if(!r){ h+='<td></td>'; continue; } var v=r.checks[i]; h+='<td><span class="mk '+(v?'y':'n')+'" aria-label="'+(v?'해냄':'도전 중')+'">'+(v?'○':'△')+'</span></td>'; }
+    if(!r){ h+='<td></td><td></td><td></td><td></td><td class="l"></td></tr>'; return; }
+    var qn=quantOf(r.gender,r.count||0), tt=totalOf(r.checks,r.gender,r.count||0);
+    h+='<td>'+qualOf(r.checks)+'</td><td>'+(r.count||0)+'</td><td>'+(qn==null?'–':qn)+'</td><td><b style="color:#1F4F9E">'+(tt==null?'–':tt)+'</b></td><td class="l">'+esc(r.memo||'')+'</td></tr>';
+  });
+  h+='</tbody></table></div><p style="margin:0;font-size:12px;color:#56677F">○ 해냄 · △ 도전 중 · 성별 칸이 ?인 학생은 양적 점수가 계산되지 않아요 · 이름을 누르면 그 학생 평가 화면으로 가요.</p></div>';
+  $('view').innerHTML=h;
+}
+
+/* ---------- 동작 ---------- */
+function blank(){ var a=[]; for(var i=0;i<N;i++) a.push(false); return a; }
+function selectStudent(no, silent){
+  S.cur=no;
+  var r=resOf(S.cls,no), g=(r&&QT[r.gender])?r.gender:genderOf(S.cls,no);
+  S.draft = r ? {checks:r.checks.slice(), count:r.count||0, gender:g, memo:r.memo||'', sentence:r.sentence||'', edited:!!r.edited, variant:r.variant||0, fin:!!r.fin}
+              : {checks:blank(), count:0, gender:g, memo:'', sentence:'', edited:false, variant:0, fin:false};
+  S.dirty=false;
+  if(!silent) render();
+}
+function saveCurrent(fin){
+  clearTimeout(S.timer);
+  var d=S.draft; if(!d||S.cur==null) return;
+  if(fin) d.fin=true;
+  var ch=d.checks.map(function(x){return x===true;}), n=yesCount(ch), m=d.count, qn=quantOf(d.gender,m);
+  var rec={checks:ch, done:n, qual:QUAL[n], gender:d.gender, count:m, quant:qn, total:qn==null?null:QUAL[n]+qn,
+           memo:d.memo, sentence:d.edited?d.sentence:makeSentence(ch,d.variant), edited:d.edited, variant:d.variant, fin:d.fin, at:new Date().toISOString()};
+  var c=S.cls, doc=Object.assign({}, S.results[c]||{}); doc['s'+S.cur]=rec;
+  S.results[c]=doc; S.dirty=false;
+  var st=$('savedTxt'); if(st) st.textContent='저장됨';
+  saveResults();
+}
+function touch(){ S.dirty=true; var st=$('savedTxt'); if(st) st.textContent='저장 전'; clearTimeout(S.timer); S.timer=setTimeout(function(){ if(S.dirty){ saveCurrent(); var a=document.activeElement; if(S.view==='eval' && !(a && a.id==='memo')) render(); } },2500); }
+function go(delta){
+  var list=students(S.cls), idx=list.findIndex(function(s){return s.no===S.cur;});
+  var t=list[idx+delta]; if(!t){ render(); toast(S.cls+'반 마지막 학생까지 저장했어요.'); return; }
+  selectStudent(t.no);
+}
+function switchStudent(no){ if(S.dirty) saveCurrent(); selectStudent(no); }
+// 성별 선택 전에 다른 칸을 누르면 안내 문구를 흔들어 알림
+function shakeWarn(){ var w=$('gwarn'); if(!w) return; w.classList.remove('shake'); void w.offsetWidth; w.classList.add('shake'); clearTimeout(shakeWarn.h); shakeWarn.h=setTimeout(function(){ w.classList.remove('shake'); },520); }
+function setGender(g){
+  S.draft.gender=g;
+  var m=S.genders[S.cls]=Object.assign({}, S.genders[S.cls]||{}); m['s'+S.cur]=g;
+  touch(); render();
+}
+function bump(k){
+  var d=S.draft;
+  if(k<0 && d.count<=0){ toast('0개보다 줄일 수 없어요.'); return; }
+  if(k>0 && d.count>=MAXCOUNT) return;
+  S.anim = k>0 ? {i:d.count, t:'out'} : {i:d.count-1, t:'in'};
+  d.count+=k; touch(); render();
+  var t=QT[d.gender]; if(k>0 && t && d.count===t.max) toast(t.name+'학생 만점 '+t.max+'개 달성!');
+}
+
+document.addEventListener('click', function(ev){
+  var b=ev.target.closest('button'); if(!b) return;
+  if(b.dataset.c){ if(S.dirty) saveCurrent(); S.cls=+b.dataset.c; S.cur=null; render(); return; }
+  if(b.dataset.s){ switchStudent(+b.dataset.s); return; }
+  if(b.dataset.go){ S.view='eval'; switchStudent(+b.dataset.go); return; }
+  if(b.dataset.g){ setGender(b.dataset.g); return; }
+  if(!S.draft || S.view!=='eval'){} else if(!QT[S.draft.gender] && (b.classList.contains('tile') || b.id==='plusBtn' || b.id==='minusBtn' || b.id==='nextBtn')){ shakeWarn(); return; }
+  if(b.dataset.i!=null && b.classList.contains('tile')){ var i=+b.dataset.i; S.draft.checks[i]=!S.draft.checks[i]; touch(); render(); return; }
+  if(b.id==='plusBtn'){ bump(1); return; }
+  if(b.id==='minusBtn'){ bump(-1); return; }
+  if(b.id==='viewBtn'){ if(S.dirty) saveCurrent(); S.view = S.view==='class'?'eval':'class'; render(); return; }
+  if(b.id==='nextBtn'){ saveCurrent(true); go(1); return; }
+  if(b.id==='prevBtn'){ if(S.dirty) saveCurrent(); go(-1); return; }
+  if(b.id==='exportBtn'){ exportXlsx(); return; }
+  if(b.id==='noticeClose'){ $('notice').classList.add('hide'); return; }
+});
+document.addEventListener('input', function(ev){
+  if(ev.target.id==='memo'){ S.draft.memo=ev.target.value; touch(); }
+});
+
+/* ---------- 엑셀 ---------- */
+$('file').addEventListener('change', function(ev){
+  var f=ev.target.files[0]; ev.target.value=''; if(!f) return;
+  if(typeof XLSX==='undefined'){ toast('엑셀 도구를 불러오지 못했어요. 새로고침 후 다시 시도해 주세요.'); return; }
+  var rd=new FileReader();
+  rd.onload=function(){
+    try{
+      var wb=XLSX.read(new Uint8Array(rd.result),{type:'array'}), found={};
+      wb.SheetNames.forEach(function(sn){
+        var rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:''}), hr=-1,ci=-1,ni=-1,mi=-1,gi=-1;
+        for(var r=0;r<Math.min(rows.length,10);r++){
+          var row=rows[r].map(function(x){return String(x).replace(/\s/g,'');});
+          if(row.indexOf('번호')>=0 && row.indexOf('이름')>=0){ hr=r; ni=row.indexOf('번호'); mi=row.indexOf('이름'); ci=row.indexOf('반'); gi=row.indexOf('성별'); break; }
+        }
+        if(hr<0) return;
+        var sheetCls=parseInt(String(sn).replace(/[^0-9]/g,''),10);
+        for(var k=hr+1;k<rows.length;k++){
+          var no=parseInt(rows[k][ni],10), nm=String(rows[k][mi]).trim(), c = ci>=0 ? parseInt(rows[k][ci],10) : sheetCls;
+          if(!no||!nm||!c||c<1||c>10) continue;
+          var st={no:no,name:nm.slice(0,40)}, g=gi>=0?normG(rows[k][gi]):''; if(g) st.gender=g;
+          (found[c]=found[c]||[]).push(st);
+        }
+      });
+      var cs=Object.keys(found);
+      if(!cs.length){ toast('이름이 채워진 학생을 찾지 못했어요. 반·번호·이름 칸을 확인해 주세요.'); return; }
+      cs.forEach(function(c){ found[c].sort(function(a,b){return a.no-b.no;}); S.classes[c]={cls:+c, students:found[c]}; });
+      saveRoster();
+      var gN=0; cs.forEach(function(c){ found[c].forEach(function(s){ if(s.gender) gN++; }); });
+      toast(cs.map(function(c){return c+'반 '+found[c].length+'명';}).join(', ')+' 불러왔어요.'+(gN?' (성별 '+gN+'명 포함)':''));
+      S.cls=+cs[0]; S.cur=null; render();
+    }catch(e){ toast('파일을 읽지 못했어요. 엑셀 파일인지 확인해 주세요.'); }
+  };
+  rd.readAsArrayBuffer(f);
+});
+
+function exportXlsx(){
+  if(S.dirty) saveCurrent();
+  if(typeof XLSX==='undefined'){ toast('엑셀 도구를 불러오지 못했어요.'); return; }
+  var wb=XLSX.utils.book_new(), any=false;
+  for(var c=1;c<=10;c++){
+    var list=students(c); if(!list.length) continue; any=true;
+    var aoa=[['반','번호','이름','성별'].concat(EL.map(function(e){return e.kw;})).concat(['해낸 요소 수','질적 점수(30)','성공 개수','양적 점수(70)','총점(100)','생기부 문장','메모'])];
+    list.forEach(function(s){
+      var r=resOf(c,s.no), sg=r&&QT[r.gender]?r.gender:genderOf(c,s.no), row=[c,s.no,s.name,sg?QT[sg].name:''];
+      for(var i=0;i<N;i++) row.push(r?(r.checks[i]?'해냄':'도전 중'):'');
+      if(r){ var m=r.count||0, qn=quantOf(r.gender,m), tt=totalOf(r.checks,r.gender,m); row.push(yesCount(r.checks), qualOf(r.checks), m, qn==null?'':qn, tt==null?'':tt, r.sentence, r.memo||''); }
+      else row.push('','','','','','','');
+      aoa.push(row);
+    });
+    var ws=XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols']=[{wch:5},{wch:5},{wch:14},{wch:5}].concat(EL.map(function(){return {wch:11};})).concat([{wch:10},{wch:12},{wch:9},{wch:12},{wch:10},{wch:70},{wch:20}]);
+    XLSX.utils.book_append_sheet(wb,ws,c+'반');
+  }
+  if(!any){ toast('저장할 명렬이 없어요.'); return; }
+  try{ XLSX.writeFile(wb,'배구언더핸드패스평가_결과.xlsx'); toast('결과 엑셀을 저장했어요.'); }catch(e){ toast('파일을 저장하지 못했어요.'); }
+}
+
+/* ---------- 저장: 명렬은 드리블 평가 웹앱과 함께 씀 ---------- */
+var LKEY='volleyball-eval-v1';     // 배구 평가 결과
+var RKEY='dribble-eval-v1';        // 드리블 평가 웹앱 저장 공간(명렬을 함께 씀)
+var SAMPLE=[{"no": 1, "name": "뉴진스"}, {"no": 2, "name": "아이브"}, {"no": 3, "name": "르세라핌"}, {"no": 4, "name": "에스파"}, {"no": 5, "name": "아이들"}, {"no": 6, "name": "있지"}, {"no": 7, "name": "엔믹스"}, {"no": 8, "name": "베이비몬스터"}, {"no": 9, "name": "아일릿"}, {"no": 10, "name": "키스오브라이프"}, {"no": 11, "name": "트리플에스"}, {"no": 12, "name": "하츠투하츠"}, {"no": 13, "name": "블랙핑크"}, {"no": 14, "name": "트와이스"}, {"no": 15, "name": "레드벨벳"}, {"no": 16, "name": "방탄소년단"}, {"no": 17, "name": "세븐틴"}, {"no": 18, "name": "스트레이키즈"}, {"no": 19, "name": "엔하이픈"}, {"no": 20, "name": "투모로우바이투게더"}, {"no": 21, "name": "라이즈"}, {"no": 22, "name": "투어스"}, {"no": 23, "name": "보이넥스트도어"}, {"no": 24, "name": "제로베이스원"}, {"no": 25, "name": "에이티즈"}, {"no": 26, "name": "더보이즈"}, {"no": 27, "name": "엔시티위시"}, {"no": 28, "name": "올데이프로젝트"}, {"no": 29, "name": "케플러"}, {"no": 30, "name": "프로미스나인"}];
+function readKey(k){ try{ return JSON.parse(localStorage.getItem(k)||'null'); }catch(e){ return null; } }
+function hasRoster(cl){ return cl && Object.keys(cl).some(function(c){ return cl[c] && Array.isArray(cl[c].students) && cl[c].students.length; }); }
+function saveResults(){
+  try{ localStorage.setItem(LKEY, JSON.stringify({classes:S.classes, results:S.results, genders:S.genders})); }
+  catch(e){ toast('이 브라우저는 저장을 막고 있어요. 엑셀 저장으로 백업해 주세요.'); }
+}
+// 새 명렬은 드리블 평가 웹앱 쪽 명렬에도 같이 넣음(드리블 평가 결과는 그대로 둠)
+function saveRoster(){
+  saveResults();
+  try{
+    var d=readKey(RKEY)||{classes:{},results:{}};
+    d.classes=d.classes||{}; d.results=d.results||{};
+    Object.keys(S.classes).forEach(function(c){ d.classes[c]=S.classes[c]; });
+    localStorage.setItem(RKEY, JSON.stringify(d));
+  }catch(e){}
+}
+function showNotice(m){ var n=$('notice'); n.innerHTML=esc(m)+' <button class="btn sm" id="noticeClose" style="margin-left:8px;height:32px">닫기</button>'; n.classList.remove('hide'); }
+function boot(){
+  var ok=true; try{ localStorage.setItem('__t','1'); localStorage.removeItem('__t'); }catch(e){ ok=false; }
+  var mine=readKey(LKEY)||{}, drb=readKey(RKEY)||{};
+  S.results=mine.results||{}; S.genders=mine.genders||{};
+  if(hasRoster(drb.classes)){ S.classes=drb.classes; }
+  else if(hasRoster(mine.classes)){ S.classes=mine.classes; }
+  else { S.classes={1:{cls:1, students:SAMPLE.slice()}}; }
+  if(ok) saveResults();
+  S.loaded=true;
+  showNotice(ok ? '명렬은 드리블 평가 웹앱과 함께 써요. 성별은 학생마다 한 번만 고르면 기억해요. 평가가 끝나면 엑셀 저장으로 백업해 두세요.'
+                : '이 브라우저는 저장을 막고 있어요. 크롬이나 사파리의 일반 창에서 열어 주세요.');
+  render();
+}
+render();
+boot();
+// 드리블 웹앱에서 명렬을 바꾸고 돌아오면 새 명렬을 반영
+window.addEventListener('storage', function(e){ if(e.key===RKEY){ var d=readKey(RKEY); if(d && hasRoster(d.classes)){ S.classes=d.classes; render(); } } });
+</script>
+</body>
+</html>
